@@ -19,9 +19,9 @@ public:
                             random::rand_max * write_fraction; // TODO: check if there is a but with range edges
             auto tr = Transaction(is_write ? TransactionType::WRITE_ONLY : TransactionType::READ_ONLY);
 
-            tr.indexes.resize(config::transaction_size);
+            tr.data.resize(config::transaction_size);
             for (size_t j = 0; j < config::transaction_size; j++) {
-                tr.indexes[j] = random::xorshf96() % config::data_size;
+                tr.data[j] = random::xorshf96() % config::data_size;
             }
 
             res.push_back(tr);

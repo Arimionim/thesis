@@ -8,5 +8,4 @@ add_executable(thesis
         client/Client.h
         coordinator/Coordinator.h
         client/RequestGenerator.h
-        client/ClientNetworkInteractor.h
-        messages/Transaction.h messages/TransactionType.h network/NetworkEmulator.h messages/MessageType.h environment.h Utils.h coordinator/CoordinatorNetworkInteractor.h server/ServerNetworkInteractor.h server/Server.h)
+        messages/Transaction.h messages/TransactionType.h environment.h Utils.h server/Server.h network/NetworkInteractor.h network/Receiver.h)

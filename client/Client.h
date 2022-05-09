@@ -1,18 +1,17 @@
 #ifndef THESIS_CLIENT_H
 #define THESIS_CLIENT_H
 
-#include "../coordinator/CoordinatorNetworkInteractor.h"
-#include "ClientNetworkInteractor.h"
 #include "RequestGenerator.h"
 #include "../messages/Transaction.h"
+#include "../network/NetworkInteractor.h"
 #include <vector>
 #include <cstddef>
 #include <chrono>
 #include <thread>
 
-class Client {
+class Client : public Receiver {
 public:
-    explicit Client(CoordinatorNetworkInteractor *coordinator) : interactor(coordinator) {}
+    explicit Client(NetworkInteractor *coordinator) : coordinator(coordinator), interactor(this) {}
 
     // wait *delay*, then sends all transactions from load to coordinator with interval *interval*
     void startLoad(size_t interval, size_t delay = 0) { // ms
@@ -21,7 +20,7 @@ public:
         }
 
         for (const auto &tr: load) {
-            interactor.send(tr);
+            interactor.send(coordinator, tr);
             sleep(interval);
         }
     }
@@ -48,10 +47,14 @@ public:
         load.clear();
     }
 
+    void receive(NetworkInteractor *sender, Transaction transaction) override {
+    }
+
+    NetworkInteractor interactor;
 private:
     std::vector<Transaction> load;
 
-    ClientNetworkInteractor interactor;
+    NetworkInteractor *coordinator;
 };
 
 #endif //THESIS_CLIENT_H

@@ -1,8 +1,0 @@
-#ifndef THESIS_MESSAGETYPE_H
-#define THESIS_MESSAGETYPE_H
-
-enum MessageType {
-    TRANSACTION
-};
-
-#endif //THESIS_MESSAGETYPE_H

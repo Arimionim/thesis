@@ -1,8 +1,0 @@
-#ifndef THESIS_NETWORKEMULATOR_H
-#define THESIS_NETWORKEMULATOR_H
-
-class NetworkEmulator {
-
-};
-
-#endif //THESIS_NETWORKEMULATOR_H
