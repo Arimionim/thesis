@@ -8,8 +8,7 @@
 class Transaction {
 public:
 
-    explicit Transaction (TransactionType type) : type(type) {}
-
+    explicit Transaction(TransactionType type) : type(type) {}
 
     std::vector<size_t> indexes; // if transaction is write we will write random values
     const TransactionType type;

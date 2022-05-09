@@ -2,17 +2,18 @@
 #define THESIS_COORDINATORNETWORKINTERACTOR_H
 
 #include "Coordinator.h"
+#include "../server/ServerNetworkInteractor.h"
 
 class CoordinatorNetworkInteractor {
 public:
-    explicit CoordinatorNetworkInteractor(Coordinator *coordinator) : coordinator(coordinator) { }
+    explicit CoordinatorNetworkInteractor(Coordinator *coordinator) : coordinator(coordinator) {}
 
     void receive(Transaction transaction) {
         coordinator->receive(std::move(transaction));
     }
 
-    void send(const ServerNetworkInteractor &server, const Transaction& tx) {
-
+    void send(ServerNetworkInteractor *server, const Transaction &tx) {
+        server->receive(tx);
     }
 
 private:

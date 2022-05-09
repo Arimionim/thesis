@@ -15,7 +15,8 @@ public:
         res.reserve(number);
 
         for (int i = 0; i < number; i++) {
-            bool is_write = random::xorshf96() < random::rand_max * write_fraction; // TODO: check if there is a but with range edges
+            bool is_write = random::xorshf96() <
+                            random::rand_max * write_fraction; // TODO: check if there is a but with range edges
             auto tr = Transaction(is_write ? TransactionType::WRITE_ONLY : TransactionType::READ_ONLY);
 
             tr.indexes.resize(config::transaction_size);

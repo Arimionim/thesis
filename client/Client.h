@@ -12,7 +12,7 @@
 
 class Client {
 public:
-    explicit Client(CoordinatorNetworkInteractor *coordinator) : interactor(coordinator){ }
+    explicit Client(CoordinatorNetworkInteractor *coordinator) : interactor(coordinator) {}
 
     // wait *delay*, then sends all transactions from load to coordinator with interval *interval*
     void startLoad(size_t interval, size_t delay = 0) { // ms
@@ -20,7 +20,7 @@ public:
             sleep(delay);
         }
 
-        for (const auto & tr : load) {
+        for (const auto &tr: load) {
             interactor.send(tr);
             sleep(interval);
         }
@@ -39,7 +39,7 @@ public:
         auto newLoad = RequestGenerator::generate(number, write_fraction);
 
         load.reserve(load.size() + newLoad.size());
-        for (const auto& tr : newLoad) { // TODO: check if it can be optimized
+        for (const auto &tr: newLoad) { // TODO: check if it can be optimized
             load.push_back(tr);
         }
     }

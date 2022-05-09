@@ -12,6 +12,7 @@ public:
     void send(const Transaction &transaction) {
         coordinator->receive(transaction); // first approach. May be more abstract with serialization and MessageType
     }
+
 private:
     CoordinatorNetworkInteractor *coordinator;
 };

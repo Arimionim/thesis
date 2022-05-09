@@ -9,11 +9,13 @@
 #include "../Utils.h"
 #include <condition_variable>
 #include <unordered_map>
+#include "CoordinatorNetworkInteractor.h"
 
 class Coordinator {
 
 public:
-    Coordinator() {
+    Coordinator() : interactor(this) {
+        workers.resize(config::coordinator_worker_number);
         for (size_t i = 0; i < config::coordinator_worker_number; i++) {
             workers[i] = std::thread(proceed_tx, this, i);
         }
@@ -50,16 +52,16 @@ private:
     // _____ _____ _______
     // 0     1     2
 
-    static std::vector<std::pair<size_t, Transaction>> split_tx(const Transaction& tx) {
+    static std::vector<std::pair<size_t, Transaction>> split_tx(const Transaction &tx) {
         std::unordered_map<size_t, std::vector<size_t>> res_map;
-        for (size_t idx : tx.indexes) {
+        for (size_t idx: tx.indexes) {
             res_map[std::min(idx / config::servers_number, config::servers_number - 1)].push_back(idx);
         }
 
         std::vector<std::pair<size_t, Transaction>> res;
         res.reserve(res_map.size());
 
-        for (auto& a : res_map) {
+        for (auto &a: res_map) {
             Transaction tmp(tx.type);
             tmp.indexes = std::move(a.second);
             res.emplace_back(a.first, tmp);
@@ -72,6 +74,7 @@ private:
     std::condition_variable q_cv;
     std::queue<Transaction> ts;
     mutable std::mutex ts_mutex;
+    CoordinatorNetworkInteractor interactor;
     std::mutex m;
 };
 
