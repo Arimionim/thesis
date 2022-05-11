@@ -2,6 +2,8 @@
 #define THESIS_UTILS_H
 
 #include <thread>
+#include <functional>
+#include <atomic>
 
 namespace random {
     static uint32_t x = 123456789, y = 362436069, z = 521288629;
@@ -24,7 +26,19 @@ namespace random {
 }
 
 static void sleep(uint32_t ms) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    if (ms > 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+static size_t getUid() {
+    static std::atomic<std::size_t> uid { 0 };  // <<== initialised
+//    uid = 0;    <<== removed
+    return ++uid;
+}
+
+uint64_t timeSinceEpochMs() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 

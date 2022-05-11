@@ -7,6 +7,8 @@
 #include <vector>
 #include <cstddef>
 #include <chrono>
+#include <unordered_map>
+#include <unordered_set>
 #include <thread>
 
 class Client : public Receiver {
@@ -20,9 +22,15 @@ public:
         }
 
         for (const auto &tr: load) {
+            times[tr.id] = timeSinceEpochMs();
+       //     std::cout << "client sent " << tr.id << std::endl;
+            sent.insert(tr.id);
             interactor.send(coordinator, tr);
             sleep(interval);
         }
+
+        wait_finish();
+        std::cout << "finished! " << std::endl;
     }
 
     void addLoad(Transaction tr) {
@@ -48,12 +56,30 @@ public:
     }
 
     void receive(NetworkInteractor *sender, Transaction transaction) override {
+      //  std::cout << "client receive " << transaction.id << std::endl;
+        if (transaction.type == TransactionType::READ_RESPONSE) {
+            std::lock_guard<std::mutex> lock(sent_mutex);
+            sent.erase(sent.find(transaction.id));
+            sent_cv.notify_one();
+            delays.push_back(timeSinceEpochMs() - times[transaction.id]);
+            std::cout << delays.back() << std::endl;
+        }
     }
 
     NetworkInteractor interactor;
 private:
-    std::vector<Transaction> load;
+    void wait_finish() {
+        std::unique_lock<std::mutex> lock(sent_mutex);
+        sent_cv.wait(lock, [this] { return sent.empty(); });
+    }
 
+    mutable std::mutex sent_mutex;
+    std::condition_variable sent_cv;
+
+    std::unordered_set<size_t> sent;
+    std::vector<Transaction> load;
+    std::unordered_map<size_t, uint64_t> times;
+    std::vector<uint64_t> delays;
     NetworkInteractor *coordinator;
 };
 

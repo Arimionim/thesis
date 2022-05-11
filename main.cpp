@@ -10,13 +10,21 @@
 void test1(NetworkInteractor *coordinator) {
     std::vector<Client*> clients;
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < config::clients_number; i++) {
         clients.push_back(new Client(coordinator));
     }
 
+
+    std::vector<std::thread> ts;
     for (auto& c : clients) {
-        c->addLoad(100, 0);
-        c->startLoad(100, 1000);
+        c->addLoad(10, 0);
+        std::cout << "add" << std::endl;
+        std::thread t(&Client::startLoad, c, 1000, 0);
+        std::cout << "start" << std::endl;
+    }
+
+    for (auto& t : ts) {
+        t.join();
     }
 }
 
@@ -35,14 +43,10 @@ int main() {
         servers_ints.push_back(&s->interactor);
     }
 
+    std::cout << "servers created" << std::endl;
+
     coordinator.setServers(servers_ints);
 
-    std::vector<Client*> clients;
-
     test1(&coordinator.interactor);
-
-    for (auto s : servers) {
-        delete s;
-    }
     return 0;
 }

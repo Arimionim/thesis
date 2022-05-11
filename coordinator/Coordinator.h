@@ -25,19 +25,31 @@ public:
         }
     }
 
-    void receive(NetworkInteractor *sender, Transaction transaction) override {
-        if (transaction.type == TransactionType::READ_ONLY ||
-            transaction.type == TransactionType::WRITE_ONLY) {
-            std::lock_guard<std::mutex> lock(ts_mutex);
-            ts.push(std::move(transaction));
-            q_cv.notify_one();
-        } else if (transaction.type == TransactionType::READ_RESPONSE) {
-            logger << transaction.id << "\n";
+    ~Coordinator() override {
+        stop = true;
+        q_cv.notify_all();
+        for (auto &w: workers) {
+            w.join();
         }
     }
 
-    void setServers(std::vector<NetworkInteractor*> servers_) {
+    void receive(NetworkInteractor *sender, Transaction transaction) override {
+     //   std::cout << "coor received " << transaction.id << std::endl;
+        std::lock_guard<std::mutex> lock(ts_mutex);
+        if (transaction.type == TransactionType::READ_ONLY ||
+            transaction.type == TransactionType::WRITE_ONLY) {
+            sent_transaction[transaction.id] = {sender, 0};
+        }
+        ts.push(std::move(transaction));
+        q_cv.notify_one();
+    }
+
+    void setServers(std::vector<NetworkInteractor *> servers_) {
         this->servers = std::move(servers_);
+    }
+
+    bool isStopped() {
+        return stop;
     }
 
     NetworkInteractor interactor;
@@ -46,7 +58,14 @@ private:
 
     Transaction getTransaction() {
         std::unique_lock<std::mutex> lock(ts_mutex);
-        q_cv.wait(lock);
+        if (ts.empty()) {
+            q_cv.wait(lock);
+        }
+
+        if (isStopped()) {
+            return Transaction(-1, TransactionType::READ_ONLY); // dummy transaction
+        }
+
         Transaction res = std::move(ts.front());
         ts.pop();
         lock.unlock();
@@ -58,14 +77,37 @@ private:
     }
 
     static void proceed_tx(Coordinator *coordinator, int idx) {
-        while (1) {
+        while (!coordinator->isStopped()) {
             Transaction tx = coordinator->getTransaction();
-            std::vector<std::pair<size_t, Transaction>> splitted = split_tx(tx);
-            for (auto &a: splitted) {
-                if (a.second.type == TransactionType::READ_ONLY) {
-                    a.second.data.push_back(coordinator->version);
+            if (coordinator->isStopped()) {
+                break;
+            }
+            if (tx.type == TransactionType::READ_ONLY || tx.type == TransactionType::WRITE_ONLY) {
+                std::vector<std::pair<size_t, Transaction>> splitted = split_tx(tx);
+                coordinator->sent_transaction[tx.id].pieces = splitted.size();
+//                std::cout << tx.id << ' ' << "set " << coordinator->sent_transaction[tx.id].pieces << std::endl;
+                for (auto &a: splitted) {
+                    if (a.second.type == TransactionType::READ_ONLY) {
+                        a.second.data.push_back(coordinator->version);
+                    }
+
+                    coordinator->interactor.send(coordinator->find_server(a.first), a.second);
                 }
-                coordinator->interactor.send(coordinator->find_server(a.first), a.second);
+            } else if (tx.type == TransactionType::READ_RESPONSE) {
+                sent_record &history = coordinator->sent_transaction[tx.id];
+           //     std::cout << "history: " << history.sender << ' ' << history.pieces << ' ' << history.response.size() << std::endl;
+
+                history.pieces--;
+                for (auto p: tx.data) {
+                    history.response.push_back(p);
+                }
+
+
+                if (coordinator->sent_transaction[tx.id].pieces == 0) {
+        //            std::cout << "coor sends " << tx.id << std::endl;
+                    coordinator->interactor.send(coordinator->sent_transaction[tx.id].sender,
+                                                 Transaction(tx.id, tx.type, history.response));
+                }
             }
         }
     }
@@ -85,14 +127,23 @@ private:
         res.reserve(res_map.size());
 
         for (auto &a: res_map) {
-            Transaction tmp(tx.type);
-            tmp.data = std::move(a.second);
+            Transaction tmp(tx.id, tx.type, std::move(a.second));
             res.emplace_back(a.first, tmp);
         }
 
         return res;
     }
 
+    bool stop = false;
+
+    class sent_record {
+    public:
+        NetworkInteractor *sender;
+        size_t pieces = 3000;
+        std::vector<size_t> response;
+    };
+
+    std::unordered_map<size_t, sent_record> sent_transaction; // TODO: not thread safe
 
     std::ofstream logger;
     std::vector<NetworkInteractor *> servers;

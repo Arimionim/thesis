@@ -9,10 +9,8 @@
 class Transaction {
 public:
 
-    explicit Transaction(TransactionType type, std::vector<size_t> data = std::vector<size_t>())
-            : type(type), id(id_counter++), data(std::move(data)) {}
-
-    const size_t id; // unique id of transaction;
+    explicit Transaction(size_t id, TransactionType type, std::vector<size_t> data = std::vector<size_t>())
+            : id(id), type(type), data(std::move(data)) { }
 
     /*
      * READ_ONLY:     data = {read_idx_0, read_idx_1, ..., version}
@@ -20,11 +18,9 @@ public:
      * READ_RESPONSE: data = {read_idx_0, value_0, read_idx_1, value_1, read_idx_2, ...}
      */
 
+    size_t id = -1;
     std::vector<size_t> data; // if transaction is write we will write random values
     const TransactionType type;
-
-private:
-    static size_t id_counter;
 };
 
 #endif //THESIS_TRANSACTION_H
