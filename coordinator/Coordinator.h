@@ -34,7 +34,7 @@ public:
     }
 
     void receive(NetworkInteractor *sender, Transaction transaction) override {
-     //   std::cout << "coor received " << transaction.id << std::endl;
+        if (config::log) std::cout << "coor received " << transaction.id << std::endl;
         std::lock_guard<std::mutex> lock(ts_mutex);
         if (transaction.type == TransactionType::READ_ONLY ||
             transaction.type == TransactionType::WRITE_ONLY) {
@@ -85,7 +85,6 @@ private:
             if (tx.type == TransactionType::READ_ONLY || tx.type == TransactionType::WRITE_ONLY) {
                 std::vector<std::pair<size_t, Transaction>> splitted = split_tx(tx);
                 coordinator->sent_transaction[tx.id].pieces = splitted.size();
-//                std::cout << tx.id << ' ' << "set " << coordinator->sent_transaction[tx.id].pieces << std::endl;
                 for (auto &a: splitted) {
                     if (a.second.type == TransactionType::READ_ONLY) {
                         a.second.data.push_back(coordinator->version);
@@ -95,7 +94,6 @@ private:
                 }
             } else if (tx.type == TransactionType::READ_RESPONSE) {
                 sent_record &history = coordinator->sent_transaction[tx.id];
-           //     std::cout << "history: " << history.sender << ' ' << history.pieces << ' ' << history.response.size() << std::endl;
 
                 history.pieces--;
                 for (auto p: tx.data) {
@@ -104,7 +102,7 @@ private:
 
 
                 if (coordinator->sent_transaction[tx.id].pieces == 0) {
-        //            std::cout << "coor sends " << tx.id << std::endl;
+                    if (config::log) std::cout << "coor sends " << tx.id << std::endl;
                     coordinator->interactor.send(coordinator->sent_transaction[tx.id].sender,
                                                  Transaction(tx.id, tx.type, history.response));
                 }
@@ -118,9 +116,9 @@ private:
     // 0     1     2
 
     static std::vector<std::pair<size_t, Transaction>> split_tx(const Transaction &tx) {
-        std::unordered_map<size_t, std::vector<size_t>> res_map;
-        for (size_t idx: tx.data) {
-            res_map[std::min(idx / config::servers_number, config::servers_number - 1)].push_back(idx);
+        std::unordered_map<size_t, std::vector<uint32_t>> res_map;
+        for (uint32_t idx: tx.data) {
+            res_map[idx / config::data_size].push_back(idx);
         }
 
         std::vector<std::pair<size_t, Transaction>> res;
@@ -138,9 +136,9 @@ private:
 
     class sent_record {
     public:
-        NetworkInteractor *sender;
+        NetworkInteractor *sender = nullptr;
         size_t pieces = 3000;
-        std::vector<size_t> response;
+        std::vector<uint32_t> response;
     };
 
     std::unordered_map<size_t, sent_record> sent_transaction; // TODO: not thread safe

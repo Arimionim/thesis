@@ -4,7 +4,8 @@
 enum TransactionType {
     READ_ONLY,
     WRITE_ONLY,
-    READ_RESPONSE
+    READ_RESPONSE,
+    WRITE_RESPONSE
 };
 
 #endif //THESIS_TRANSACTIONTYPE_H

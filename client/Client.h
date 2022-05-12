@@ -23,14 +23,20 @@ public:
 
         for (const auto &tr: load) {
             times[tr.id] = timeSinceEpochMs();
-       //     std::cout << "client sent " << tr.id << std::endl;
+            if (config::log) std::cout << "client sent " << tr.id << std::endl;
             sent.insert(tr.id);
             interactor.send(coordinator, tr);
-            sleep(interval);
+            if (interval > 0)
+                sleep(interval);
         }
 
         wait_finish();
-        std::cout << "finished! " << std::endl;
+        if (config::log) std::cout << "finished! " << std::endl;
+        double avg = 0;
+        for (auto v : delays) {
+            avg += v;
+        }
+        std::cout << (avg / delays.size()) << std::endl;
     }
 
     void addLoad(Transaction tr) {
@@ -56,13 +62,13 @@ public:
     }
 
     void receive(NetworkInteractor *sender, Transaction transaction) override {
-      //  std::cout << "client receive " << transaction.id << std::endl;
+        if (config::log) std::cout << "client receive " << transaction.id << std::endl;
         if (transaction.type == TransactionType::READ_RESPONSE) {
             std::lock_guard<std::mutex> lock(sent_mutex);
             sent.erase(sent.find(transaction.id));
             sent_cv.notify_one();
             delays.push_back(timeSinceEpochMs() - times[transaction.id]);
-            std::cout << delays.back() << std::endl;
+            if (config::log) std::cout << delays.back() << std::endl;
         }
     }
 

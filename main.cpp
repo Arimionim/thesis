@@ -17,10 +17,8 @@ void test1(NetworkInteractor *coordinator) {
 
     std::vector<std::thread> ts;
     for (auto& c : clients) {
-        c->addLoad(10, 0);
-        std::cout << "add" << std::endl;
-        std::thread t(&Client::startLoad, c, 1000, 0);
-        std::cout << "start" << std::endl;
+        c->addLoad(100, 0);
+        ts.emplace_back(&Client::startLoad, c, 500, 0);
     }
 
     for (auto& t : ts) {
@@ -34,8 +32,7 @@ int main() {
     std::vector<Server*> servers;
 
     for (int i = 0; i < config::servers_number; i++) {
-        servers.push_back(new Server(&coordinator.interactor, config::data_size / config::servers_number +
-                (i == config::servers_number - 1) * (config::data_size % config::servers_number)));
+        servers.push_back(new Server(&coordinator.interactor, config::data_size));
     }
 
     std::vector<NetworkInteractor*> servers_ints;

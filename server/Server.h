@@ -13,7 +13,7 @@
 class Server : public Receiver {
 public:
     explicit Server(NetworkInteractor *coordinator, size_t data_size) : data_size(data_size),
-                                                                        data(1, std::unordered_map<size_t, int>()),
+                                                                        data(1, std::unordered_map<size_t, uint32_t>()),
                                                                         interactor(this),
                                                                         coordinator(coordinator) {
         read_worker = std::thread(proceed_read, this);
@@ -25,7 +25,7 @@ public:
     }
 
     void send(const Transaction &transaction) {
-  //      std::cout << "server sent " << transaction.id << std::endl;
+        if (config::log) std::cout << "server sent " << transaction.id << std::endl;
         interactor.send(coordinator, transaction);
     }
 
@@ -45,7 +45,7 @@ public:
         while (1) {
             Transaction tx = server->getReadTransaction();
 
-            std::vector<size_t> res(tx.data.size() * 2); // results are stored as {idx0, val0, idx1, val1, idx2 ...
+            std::vector<uint32_t> res(tx.data.size() * 2); // results are stored as {idx0, val0, idx1, val1, idx2 ...
             for (size_t j = 0; j < tx.data.size() - 1; j++) {
                 res[j * 2] = tx.data[j];
                 res[j * 2 + 1] = server->get(tx.data.back(), tx.data[j]);
@@ -71,15 +71,22 @@ public:
     static void proceed_write(Server *server) {
         while (1) {
             Transaction tx = server->getWriteTransaction();
+            for (uint32_t & i : tx.data) {
+                server->draft[i] = random::xorshf96();
+            }
+
+            server->send(Transaction(tx.id, TransactionType::WRITE_RESPONSE));
         }
     }
 
-    int get(size_t version, size_t idx) {
-        for (size_t v = version; v >= 0; v--) {
+    uint32_t get(size_t version, size_t idx) {
+        for (int v = version; v >= 0; v--) {
             if (exists(v, idx)) {
                 return data[v][idx];
             }
         }
+
+        return 0;
     }
 
     bool exists(size_t v, size_t idx) {
@@ -88,7 +95,7 @@ public:
 
     void receive(NetworkInteractor *sender, Transaction transaction)
     override {
-      //  std::cout << "serv received " << transaction.id << std::endl;
+        if (config::log) std::cout << "serv received " << transaction.id << std::endl;
         if (transaction.type == TransactionType::READ_ONLY) {
             std::lock_guard<std::mutex> lock(read_ts_mutex);
             read_ts.push(transaction);
@@ -116,8 +123,8 @@ private:
     std::queue<Transaction> write_ts;
     std::condition_variable write_q_cv;
 
-    std::vector<std::unordered_map<size_t, int>> data;
-    std::unordered_map<size_t, int> draft;
+    std::vector<std::unordered_map<size_t, uint32_t>> data;
+    std::unordered_map<size_t, uint32_t> draft;
 };
 
 #endif //THESIS_SERVER_H

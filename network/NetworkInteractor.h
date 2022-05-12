@@ -16,7 +16,7 @@ public:
     }
 
     void send(NetworkInteractor *receiver, Transaction tx) {
-        std::cout << "sending " << tx.id << ' ' << owner << "->" << receiver << std::endl;
+//        std::cout << "sending " << tx.id << ' ' << owner << "->" << receiver << std::endl;
         std::thread worker = std::thread(send_helper, this, receiver, tx);
         worker.detach();
     }

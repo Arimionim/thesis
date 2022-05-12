@@ -9,7 +9,7 @@
 class Transaction {
 public:
 
-    explicit Transaction(size_t id, TransactionType type, std::vector<size_t> data = std::vector<size_t>())
+    explicit Transaction(size_t id, TransactionType type, std::vector<uint32_t> data = std::vector<uint32_t>())
             : id(id), type(type), data(std::move(data)) { }
 
     /*
@@ -19,7 +19,7 @@ public:
      */
 
     size_t id = -1;
-    std::vector<size_t> data; // if transaction is write we will write random values
+    std::vector<uint32_t> data; // if transaction is write we will write random values
     const TransactionType type;
 };
 
