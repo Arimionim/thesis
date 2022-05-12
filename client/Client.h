@@ -13,7 +13,7 @@
 
 class Client : public Receiver {
 public:
-    explicit Client(NetworkInteractor *coordinator) : coordinator(coordinator), interactor(this) {}
+    explicit Client(NetworkInteractor *coordinator, size_t id) : id(id), coordinator(coordinator), interactor(this) {}
 
     // wait *delay*, then sends all transactions from load to coordinator with interval *interval*
     void startLoad(size_t interval, size_t delay = 0) { // ms
@@ -22,9 +22,11 @@ public:
         }
 
         for (const auto &tr: load) {
-            times[tr.id] = timeSinceEpochMs();
             if (config::log) std::cout << "client sent " << tr.id << std::endl;
+            std::unique_lock<std::mutex> lock(sent_mutex);
+            times[tr.id] = timeSinceEpochMs();
             sent.insert(tr.id);
+            lock.unlock();
             interactor.send(coordinator, tr);
             if (interval > 0)
                 sleep(interval);
@@ -36,7 +38,8 @@ public:
         for (auto v : delays) {
             avg += v;
         }
-        std::cout << (avg / delays.size()) << std::endl;
+        logger::add((avg / delays.size()));
+       // std::cout << id << ' ' << (avg / delays.size()) << std::endl;
     }
 
     void addLoad(Transaction tr) {
@@ -64,9 +67,10 @@ public:
     void receive(NetworkInteractor *sender, Transaction transaction) override {
         if (config::log) std::cout << "client receive " << transaction.id << std::endl;
         if (transaction.type == TransactionType::READ_RESPONSE) {
-            std::lock_guard<std::mutex> lock(sent_mutex);
+            std::unique_lock<std::mutex> lock(sent_mutex);
             sent.erase(sent.find(transaction.id));
-            sent_cv.notify_one();
+            lock.unlock();
+            sent_cv.notify_all();
             delays.push_back(timeSinceEpochMs() - times[transaction.id]);
             if (config::log) std::cout << delays.back() << std::endl;
         }
@@ -76,12 +80,14 @@ public:
 private:
     void wait_finish() {
         std::unique_lock<std::mutex> lock(sent_mutex);
-        sent_cv.wait(lock, [this] { return sent.empty(); });
+        sent_cv.wait(lock, [this] {
+            return sent.empty();
+        });
     }
 
     mutable std::mutex sent_mutex;
     std::condition_variable sent_cv;
-
+    size_t id;
     std::unordered_set<size_t> sent;
     std::vector<Transaction> load;
     std::unordered_map<size_t, uint64_t> times;

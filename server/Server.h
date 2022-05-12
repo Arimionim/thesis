@@ -12,8 +12,7 @@
 
 class Server : public Receiver {
 public:
-    explicit Server(NetworkInteractor *coordinator, size_t data_size) : data_size(data_size),
-                                                                        data(1, std::unordered_map<size_t, uint32_t>()),
+    explicit Server(NetworkInteractor *coordinator, size_t data_size) : data(1, std::unordered_map<size_t, uint32_t>()),
                                                                         interactor(this),
                                                                         coordinator(coordinator) {
         read_worker = std::thread(proceed_read, this);
@@ -22,6 +21,14 @@ public:
         for (size_t i = 0; i < config::data_size; i++) {
             data[0][i] = 0;
         }
+    }
+
+    ~Server() override {
+        stop = true;
+        read_q_cv.notify_all();
+        write_q_cv.notify_all();
+        read_worker.join();
+        write_worker.join();
     }
 
     void send(const Transaction &transaction) {
@@ -35,6 +42,11 @@ public:
         if (read_ts.empty()) {
             read_q_cv.wait(lock);
         }
+
+        if (stop) {
+            return Transaction(-1, TransactionType::READ_ONLY);
+        }
+
         Transaction res = std::move(read_ts.front());
         read_ts.pop();
         lock.unlock();
@@ -42,8 +54,12 @@ public:
     }
 
     static void proceed_read(Server *server) {
-        while (1) {
+        while (!server->stop) {
             Transaction tx = server->getReadTransaction();
+
+            if (server->stop) {
+                break;
+            }
 
             std::vector<uint32_t> res(tx.data.size() * 2); // results are stored as {idx0, val0, idx1, val1, idx2 ...
             for (size_t j = 0; j < tx.data.size() - 1; j++) {
@@ -62,6 +78,11 @@ public:
         if (write_ts.empty()) {
             write_q_cv.wait(lock);
         }
+
+        if (stop) {
+            return Transaction(-1, TransactionType::WRITE_ONLY);
+        }
+
         Transaction res = std::move(write_ts.front());
         write_ts.pop();
         lock.unlock();
@@ -69,8 +90,11 @@ public:
     }
 
     static void proceed_write(Server *server) {
-        while (1) {
+        while (!server->stop) {
             Transaction tx = server->getWriteTransaction();
+            if (server->stop) {
+                break;
+            }
             for (uint32_t & i : tx.data) {
                 server->draft[i] = random::xorshf96();
             }
@@ -111,7 +135,8 @@ public:
 private:
     NetworkInteractor *coordinator;
 
-    size_t data_size;
+    std::atomic<bool> stop = false;
+
     std::thread read_worker;
     std::thread write_worker;
 

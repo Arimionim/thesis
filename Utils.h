@@ -41,5 +41,29 @@ uint64_t timeSinceEpochMs() {
     return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
+namespace logger {
+    std::mutex mutex;
+
+    std::vector<double> all;
+
+    void add(double s) {
+        std::lock_guard<std::mutex> lock(mutex);
+        all.push_back(s);
+    //    std::cout << s << std::endl;
+    }
+
+    double avg() {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        double avg = 0;
+        for (auto v: all) {
+            avg += v;
+        }
+
+        return avg / all.size();
+    }
+
+}
+
 
 #endif //THESIS_UTILS_H

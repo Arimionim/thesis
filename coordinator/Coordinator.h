@@ -36,9 +36,12 @@ public:
     void receive(NetworkInteractor *sender, Transaction transaction) override {
         if (config::log) std::cout << "coor received " << transaction.id << std::endl;
         std::lock_guard<std::mutex> lock(ts_mutex);
+
         if (transaction.type == TransactionType::READ_ONLY ||
             transaction.type == TransactionType::WRITE_ONLY) {
+            std::unique_lock<std::mutex> sent_lock(sent_mutex);
             sent_transaction[transaction.id] = {sender, 0};
+            sent_lock.unlock();
         }
         ts.push(std::move(transaction));
         q_cv.notify_one();
@@ -84,7 +87,11 @@ private:
             }
             if (tx.type == TransactionType::READ_ONLY || tx.type == TransactionType::WRITE_ONLY) {
                 std::vector<std::pair<size_t, Transaction>> splitted = split_tx(tx);
+                std::unique_lock<std::mutex> lock(coordinator->sent_mutex);
+
                 coordinator->sent_transaction[tx.id].pieces = splitted.size();
+                lock.unlock();
+
                 for (auto &a: splitted) {
                     if (a.second.type == TransactionType::READ_ONLY) {
                         a.second.data.push_back(coordinator->version);
@@ -93,6 +100,7 @@ private:
                     coordinator->interactor.send(coordinator->find_server(a.first), a.second);
                 }
             } else if (tx.type == TransactionType::READ_RESPONSE) {
+                std::unique_lock<std::mutex> lock(coordinator->sent_mutex);
                 sent_record &history = coordinator->sent_transaction[tx.id];
 
                 history.pieces--;
@@ -101,11 +109,18 @@ private:
                 }
 
 
-                if (coordinator->sent_transaction[tx.id].pieces == 0) {
+                if (history.pieces == 0) {
+                    auto sender = history.sender;
+
                     if (config::log) std::cout << "coor sends " << tx.id << std::endl;
-                    coordinator->interactor.send(coordinator->sent_transaction[tx.id].sender,
+                   // std::cout << "piece send " << tx.id << ' ' << tx.type << ' ' << history.response[0] << ' ' << history.response.size() << std::endl;
+                    coordinator->interactor.send(sender,
                                                  Transaction(tx.id, tx.type, history.response));
+
+                    coordinator->sent_transaction.erase(coordinator->sent_transaction.find(tx.id));
                 }
+                lock.unlock();
+
             }
         }
     }
@@ -132,15 +147,15 @@ private:
         return res;
     }
 
-    bool stop = false;
+    std::atomic<bool> stop = false;
 
     class sent_record {
     public:
         NetworkInteractor *sender = nullptr;
         size_t pieces = 3000;
-        std::vector<uint32_t> response;
+        std::vector<uint32_t> response = std::vector<uint32_t>();
     };
-
+    mutable std::mutex sent_mutex;
     std::unordered_map<size_t, sent_record> sent_transaction; // TODO: not thread safe
 
     std::ofstream logger;

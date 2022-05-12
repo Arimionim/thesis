@@ -11,19 +11,21 @@ void test1(NetworkInteractor *coordinator) {
     std::vector<Client*> clients;
 
     for (int i = 0; i < config::clients_number; i++) {
-        clients.push_back(new Client(coordinator));
+        clients.push_back(new Client(coordinator, i));
     }
 
 
     std::vector<std::thread> ts;
     for (auto& c : clients) {
-        c->addLoad(100, 0);
-        ts.emplace_back(&Client::startLoad, c, 500, 0);
+        c->addLoad(1000, 0);
+        ts.emplace_back(&Client::startLoad, c, 50, 0);
     }
 
     for (auto& t : ts) {
         t.join();
     }
+
+    std::cout << "result: " << logger::avg() << std::endl;
 }
 
 int main() {
