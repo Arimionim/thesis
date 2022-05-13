@@ -34,12 +34,21 @@ public:
 
         wait_finish();
         if (config::log) std::cout << "finished! " << std::endl;
+
         double avg = 0;
-        for (auto v : delays) {
+        for (auto v: delays_w) {
             avg += v;
         }
-        logger::add((avg / delays.size()));
-       // std::cout << id << ' ' << (avg / delays.size()) << std::endl;
+        logger::add_w((avg / delays_w.size()));
+
+        avg = 0;
+        for (auto v: delays_r) {
+            avg += v;
+        }
+        logger::add_r((avg / delays_r.size()));
+
+
+        // std::cout << id << ' ' << (avg / delays.size()) << std::endl;
     }
 
     void addLoad(Transaction tr) {
@@ -66,13 +75,15 @@ public:
 
     void receive(NetworkInteractor *sender, Transaction transaction) override {
         if (config::log) std::cout << "client receive " << transaction.id << std::endl;
-        if (transaction.type == TransactionType::READ_RESPONSE) {
+        if (transaction.type == TransactionType::READ_RESPONSE ||
+            transaction.type == TransactionType::WRITE_RESPONSE) {
             std::unique_lock<std::mutex> lock(sent_mutex);
             sent.erase(sent.find(transaction.id));
             lock.unlock();
             sent_cv.notify_all();
-            delays.push_back(timeSinceEpochMs() - times[transaction.id]);
-            if (config::log) std::cout << delays.back() << std::endl;
+            (transaction.type == TransactionType::READ_RESPONSE ? delays_r : delays_w)
+                    .push_back(timeSinceEpochMs() - times[transaction.id]);
+            if (config::log) std::cout << (transaction.type == TransactionType::READ_RESPONSE ? delays_r : delays_w).back() << std::endl;
         }
     }
 
@@ -91,7 +102,8 @@ private:
     std::unordered_set<size_t> sent;
     std::vector<Transaction> load;
     std::unordered_map<size_t, uint64_t> times;
-    std::vector<uint64_t> delays;
+    std::vector<uint64_t> delays_w;
+    std::vector<uint64_t> delays_r;
     NetworkInteractor *coordinator;
 };
 

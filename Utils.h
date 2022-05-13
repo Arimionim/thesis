@@ -44,23 +44,49 @@ uint64_t timeSinceEpochMs() {
 namespace logger {
     std::mutex mutex;
 
-    std::vector<double> all;
+    std::vector<double> all_w;
+    std::vector<double> all_r;
 
-    void add(double s) {
+    void add_w(double s) {
         std::lock_guard<std::mutex> lock(mutex);
-        all.push_back(s);
+        all_w.push_back(s);
     //    std::cout << s << std::endl;
     }
 
-    double avg() {
+    void add_r(double s) {
+        std::lock_guard<std::mutex> lock(mutex);
+        all_r.push_back(s);
+        //    std::cout << s << std::endl;
+    }
+
+    double avg_w() {
         std::lock_guard<std::mutex> lock(mutex);
 
+        if (all_w.empty()) {
+            return 0;
+        }
+
         double avg = 0;
-        for (auto v: all) {
+        for (auto v: all_w) {
             avg += v;
         }
 
-        return avg / all.size();
+        return avg / all_w.size();
+    }
+
+    double avg_r() {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (all_r.empty()) {
+            return 0;
+        }
+
+        double avg = 0;
+        for (auto v: all_r) {
+            avg += v;
+        }
+
+        return avg / all_r.size();
     }
 
 }

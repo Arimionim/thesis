@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <fstream>
 #include <utility>
+#include <unordered_set>
 #include "../network/NetworkInteractor.h"
 #include "../server/Server.h"
 
@@ -27,15 +28,24 @@ public:
 
     ~Coordinator() override {
         stop = true;
+        if (config::log) std::cout << "destroying coor" << std::endl;
         q_cv.notify_all();
         for (auto &w: workers) {
             w.join();
         }
+        std::lock_guard<std::mutex> lock(ts_mutex);
+      //  sleep(5000); // need to wait any remaining transactions
+        if (config::log) std::cout << "coor destroyed" << std::endl;
     }
 
     void receive(NetworkInteractor *sender, Transaction transaction) override {
-        if (config::log) std::cout << "coor received " << transaction.id << std::endl;
+        if (config::log) std::cout << "coor received " << transaction.id << ' ' << transaction.type <<  std::endl;
+
         std::lock_guard<std::mutex> lock(ts_mutex);
+
+        if (stop) {
+            return;
+        }
 
         if (transaction.type == TransactionType::READ_ONLY ||
             transaction.type == TransactionType::WRITE_ONLY) {
@@ -56,12 +66,12 @@ public:
     }
 
     NetworkInteractor interactor;
-    size_t version = 0;
+    std::atomic<size_t> version = 0;
 private:
 
     Transaction getTransaction() {
         std::unique_lock<std::mutex> lock(ts_mutex);
-        if (ts.empty()) {
+        if (!isStopped() && ts.empty()) {
             q_cv.wait(lock);
         }
 
@@ -99,7 +109,8 @@ private:
 
                     coordinator->interactor.send(coordinator->find_server(a.first), a.second);
                 }
-            } else if (tx.type == TransactionType::READ_RESPONSE) {
+            } else if (tx.type == TransactionType::READ_RESPONSE ||
+                        tx.type == TransactionType::WRITE_RESPONSE) {
                 std::unique_lock<std::mutex> lock(coordinator->sent_mutex);
                 sent_record &history = coordinator->sent_transaction[tx.id];
 
@@ -121,9 +132,62 @@ private:
                 }
                 lock.unlock();
 
+            } else if (tx.type == TransactionType::UPDATE_DESIRE) {
+                coordinator->register_desire(tx.id);
+                if (coordinator->should_update()) {
+                    std::cout << "updating" << std::endl;
+                    coordinator->update();
+                }
+            } else if (tx.type == TransactionType::UPDATED) {
+                coordinator->register_updated(tx.id);
+
+                if (coordinator->should_finish_update()) {
+                    coordinator->finish_update();
+                }
             }
         }
     }
+
+    void register_updated(uint32_t id) {
+        ++updated;
+    }
+    std::atomic<uint32_t> updated = 0;
+
+    std::atomic<bool> updating = false;
+
+    void register_desire(uint32_t id) {
+        if (!updating) {
+            desired.insert(id);
+        }
+    }
+
+    void finish_update() {
+        version++;
+        updated = 0;
+        updating = false;
+        std::cout << "updated, new version: " << version << std::endl;
+    }
+
+    bool should_finish_update() {
+        return updating && (updated == config::servers_number);
+    }
+
+    bool should_update() {
+        return !updating && desired.size() >= config::desire_update_limit;
+    }
+
+    /*
+     * send updame message to servers
+     */
+    void update() { // TODO: not thread safe
+        updating = true;
+        desired.clear();
+
+        for (NetworkInteractor* s : servers) {
+            interactor.send(s, Transaction(getUid(), TransactionType::UPDATE));
+        }
+    }
+
 
     // | | | | | | | | | |
     // 0 1 2 3 4 5 6 7 8 9
@@ -157,6 +221,8 @@ private:
     };
     mutable std::mutex sent_mutex;
     std::unordered_map<size_t, sent_record> sent_transaction; // TODO: not thread safe
+
+    std::unordered_set<uint32_t> desired;
 
     std::ofstream logger;
     std::vector<NetworkInteractor *> servers;

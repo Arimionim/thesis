@@ -17,15 +17,19 @@ void test1(NetworkInteractor *coordinator) {
 
     std::vector<std::thread> ts;
     for (auto& c : clients) {
-        c->addLoad(1000, 0);
-        ts.emplace_back(&Client::startLoad, c, 50, 0);
+        c->addLoad(1000, 0.01);
+        ts.emplace_back(&Client::startLoad, c, 100, 0);
     }
 
     for (auto& t : ts) {
         t.join();
     }
 
-    std::cout << "result: " << logger::avg() << std::endl;
+    for (auto c : clients) {
+        delete c;
+    }
+
+    std::cout << "result: " << logger::avg_r() << ' ' << logger::avg_w() << std::endl;
 }
 
 int main() {
@@ -47,5 +51,9 @@ int main() {
     coordinator.setServers(servers_ints);
 
     test1(&coordinator.interactor);
+
+    for (auto s : servers) {
+        delete s;
+    }
     return 0;
 }
