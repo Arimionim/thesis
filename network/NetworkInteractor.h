@@ -40,7 +40,6 @@ private:
 
         auto res = std::move(ts.front());
         ts.pop();
-        lock.unlock();
         return res;
     }
 
@@ -57,7 +56,7 @@ private:
     }
 
     std::thread worker = std::thread(send_helper, this);
-
+    std::unordered_map<uint32_t, uint32_t> timings;
     std::atomic<bool> stop = false;
     std::condition_variable q_cv;
     std::queue<std::pair<NetworkInteractor *, Transaction>> ts;

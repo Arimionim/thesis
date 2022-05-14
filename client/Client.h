@@ -83,7 +83,7 @@ public:
             sent_cv.notify_all();
             (transaction.type == TransactionType::READ_RESPONSE ? delays_r : delays_w)
                     .push_back(timeSinceEpochMs() - times[transaction.id]);
-            if (config::log) std::cout << (transaction.type == TransactionType::READ_RESPONSE ? delays_r : delays_w).back() << std::endl;
+            if (config::log) std::cout << transaction.id << ' ' << (transaction.type == TransactionType::READ_RESPONSE ? delays_r : delays_w).back() << std::endl;
         }
     }
 

@@ -89,6 +89,8 @@ namespace logger {
         return avg / all_r.size();
     }
 
+    std::vector<double> timing_c;
+    std::vector<double> timing_s;
 }
 
 

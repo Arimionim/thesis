@@ -18,8 +18,7 @@
 class Coordinator : public Receiver {
 public:
 
-    Coordinator() : interactor(this),
-                    logger(std::ofstream("coordinator.txt")) {
+    Coordinator() : interactor(this) {
         workers.resize(config::coordinator_worker_number);
         for (size_t i = 0; i < config::coordinator_worker_number; i++) {
             workers[i] = std::thread(proceed_tx, this, i);
@@ -33,7 +32,6 @@ public:
         for (auto &w: workers) {
             w.join();
         }
-        std::lock_guard<std::mutex> lock(ts_mutex);
       //  sleep(5000); // need to wait any remaining transactions
         if (config::log) std::cout << "coor destroyed" << std::endl;
     }
@@ -72,7 +70,9 @@ private:
     Transaction getTransaction() {
         std::unique_lock<std::mutex> lock(ts_mutex);
         if (!isStopped() && ts.empty()) {
-            q_cv.wait(lock);
+            q_cv.wait(lock, [this] {
+                return stop || !ts.empty();
+            });
         }
 
         if (isStopped()) {
@@ -81,6 +81,10 @@ private:
 
         Transaction res = std::move(ts.front());
         ts.pop();
+
+        if ((true || config::log) && ts.size() >= 15)
+            std::cout << "c queue " << ts.size() << ' ' << res.type << std::endl;
+
         lock.unlock();
         return res;
     }
@@ -134,10 +138,7 @@ private:
 
             } else if (tx.type == TransactionType::UPDATE_DESIRE) {
                 coordinator->register_desire(tx.id);
-                if (coordinator->should_update()) {
-                    std::cout << "updating" << std::endl;
-                    coordinator->update();
-                }
+                coordinator->try_update();
             } else if (tx.type == TransactionType::UPDATED) {
                 coordinator->register_updated(tx.id);
 
@@ -151,12 +152,13 @@ private:
     void register_updated(uint32_t id) {
         ++updated;
     }
-    std::atomic<uint32_t> updated = 0;
 
+    std::atomic<uint32_t> updated = 0;
     std::atomic<bool> updating = false;
 
     void register_desire(uint32_t id) {
         if (!updating) {
+            std::lock_guard<std::mutex> lock(desired_mutex);
             desired.insert(id);
         }
     }
@@ -165,15 +167,19 @@ private:
         version++;
         updated = 0;
         updating = false;
-        std::cout << "updated, new version: " << version << std::endl;
+        if (config::log) std::cout << "updated, new version: " << version << std::endl;
     }
 
     bool should_finish_update() {
         return updating && (updated == config::servers_number);
     }
 
-    bool should_update() {
-        return !updating && desired.size() >= config::desire_update_limit;
+    void try_update() {
+        std::lock_guard<std::mutex> lock(desired_mutex);
+        if(!updating && desired.size() >= config::desire_update_limit) {
+            if (config::log) std::cout << "updating" << std::endl;
+            update();
+        }
     }
 
     /*
@@ -220,11 +226,11 @@ private:
         std::vector<uint32_t> response = std::vector<uint32_t>();
     };
     mutable std::mutex sent_mutex;
-    std::unordered_map<size_t, sent_record> sent_transaction; // TODO: not thread safe
+    std::unordered_map<size_t, sent_record> sent_transaction;
 
+    std::mutex desired_mutex;
     std::unordered_set<uint32_t> desired;
 
-    std::ofstream logger;
     std::vector<NetworkInteractor *> servers;
     std::vector<std::thread> workers;
     std::condition_variable q_cv;

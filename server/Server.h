@@ -56,6 +56,8 @@ public:
 
         Transaction res = std::move(read_ts.front());
         read_ts.pop();
+        if ((true || config::log) && read_ts.size() >= 15)
+            std::cout << "s q size " << read_ts.size() << std::endl;
         lock.unlock();
         return res;
     }
@@ -144,6 +146,7 @@ public:
         } else if (transaction.type == TransactionType::UPDATE) {
             std::lock_guard<std::mutex> lock(update_mutex);
             updating = true;
+           // std::cout << "update received" << std::endl;
             update_cv.notify_one();
         }
     }
@@ -222,6 +225,7 @@ private:
         }
 
         void updated() {
+            //std::cout << "update sent" << std::endl;
             total = 0;
             sent = false;
             server->updating = false;
