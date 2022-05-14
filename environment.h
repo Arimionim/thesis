@@ -11,7 +11,7 @@ namespace config {
     size_t desire_update_limit = servers_number;
     size_t transaction_size = std::max(1ull, data_size / 5);
     size_t server_worker_number = 1; // not used because updating now updating is not concurrent
-    size_t server_read_worker_number = std::max(1ull, (clients_number / servers_number) / 20);
+    size_t server_read_worker_number = std::max(2ull, (clients_number / servers_number) / 15);
     size_t coordinator_worker_number = std::max(1ull, (clients_number) / 20);
     const bool log = false;
 
@@ -19,7 +19,7 @@ namespace config {
         server_update_limit = data_size * 10;
         desire_update_limit = servers_number;
         transaction_size = std::max(1ull, data_size / 5);
-        server_read_worker_number = std::max(1ull, (clients_number / servers_number) / 20);
+        server_read_worker_number = std::max(2ull, (clients_number / servers_number) / 15);
         coordinator_worker_number = std::max(1ull, (clients_number) / 20);
     }
 

@@ -3,7 +3,6 @@
 
 #include "../messages/Transaction.h"
 #include "Receiver.h"
-#include <winsock2.h>
 
 
 class NetworkInteractor {
