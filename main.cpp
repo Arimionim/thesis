@@ -16,6 +16,7 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
     config::servers_number = servers_number;
     config::clients_number = clients_number;
     config::write_ratio = write_ratio;
+    config::update();
 
     Coordinator coordinator;
 
@@ -74,15 +75,17 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
 
 int main() {
    // test1(2, 10);
-    for (double wr = 0.1; wr <= 10; wr += 0.1) {
-        for (int s = 1; s <= 5; s++) {
-            for (int c = 1; c <= 20; c++) {
+    for (double wr : {0.05, 0.1, 0.3}) {
+        for (int s = 1; s <= 1; s++) {
+            for (int cps = 10; cps <= 100; cps+=10) {
                 try {
-                    test1(s, c, wr);
+                    test1(s, cps * s, wr);
                 } catch (const std::exception& e) {
                     std::cout << e.what();
-                    c--;
+                    cps--;
                 }
+
+                logger::clear();
             }
         }
     }

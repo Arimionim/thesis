@@ -100,10 +100,16 @@ private:
                 break;
             }
             if (tx.type == TransactionType::READ_ONLY || tx.type == TransactionType::WRITE_ONLY) {
-                std::vector<std::pair<size_t, Transaction>> splitted = split_tx(tx);
+                std::vector<std::pair<size_t, Transaction>> splitted;
+                size_t id = tx.id;
+                if (config::servers_number == 1) {
+                    splitted = std::move(std::vector<std::pair<size_t, Transaction>>{{0, std::move(tx)}});
+                } else {
+                    splitted = split_tx(tx);
+                }
                 std::unique_lock<std::mutex> lock(coordinator->sent_mutex);
 
-                coordinator->sent_transaction[tx.id].pieces = splitted.size();
+                coordinator->sent_transaction[id].pieces = splitted.size();
                 lock.unlock();
 
                 for (auto &a: splitted) {

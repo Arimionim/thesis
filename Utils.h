@@ -38,14 +38,21 @@ static size_t getUid() {
 
 uint64_t timeSinceEpochMs() {
     using namespace std::chrono;
-    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    return duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 namespace logger {
+
     std::mutex mutex;
 
     std::vector<double> all_w;
     std::vector<double> all_r;
+
+    void clear() {
+        std::lock_guard<std::mutex> lock(mutex);
+        all_w.clear();
+        all_r.clear();
+    }
 
     void add_w(double s) {
         std::lock_guard<std::mutex> lock(mutex);

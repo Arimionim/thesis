@@ -17,7 +17,12 @@ public:
                                                                         interactor(this),
                                                                         coordinator(coordinator),
                                                                         version_processor(this) {
-        read_worker = std::thread(&Server::proceed_read, this);
+
+        read_workers.resize(config::server_read_worker_number);
+        for (size_t i = 0; i < config::coordinator_worker_number; i++) {
+            read_workers[i] = std::thread(&Server::proceed_read, this);
+        }
+
         write_worker = std::thread(&Server::proceed_write, this);
         update_worker = std::thread(&Server::proceed_update, this);
 
@@ -32,7 +37,11 @@ public:
         read_q_cv.notify_all();
         write_q_cv.notify_all();
         update_cv.notify_all();
-        read_worker.join();
+
+        for (auto &reader: read_workers) {
+            reader.join();
+        }
+
         write_worker.join();
         update_worker.join();
         if (config::log) std::cout << "server destroyed" << std::endl;
@@ -47,7 +56,9 @@ public:
     Transaction getReadTransaction() {
         std::unique_lock<std::mutex> lock(read_ts_mutex);
         if (read_ts.empty()) {
-            read_q_cv.wait(lock);
+            read_q_cv.wait(lock, [this] {
+                return stop || !read_ts.empty();
+            });
         }
 
         if (stop) {
@@ -109,7 +120,7 @@ public:
             version_processor.register_read(tx.data.size());
 
             std::unique_lock<std::mutex> lock(draft_mutex);
-            for (uint32_t & i : tx.data) {
+            for (uint32_t &i: tx.data) {
                 draft[i] = random::xorshf96();
             }
             lock.unlock();
@@ -146,7 +157,7 @@ public:
         } else if (transaction.type == TransactionType::UPDATE) {
             std::lock_guard<std::mutex> lock(update_mutex);
             updating = true;
-           // std::cout << "update received" << std::endl;
+            // std::cout << "update received" << std::endl;
             update_cv.notify_one();
         }
     }
@@ -189,7 +200,7 @@ private:
 
     std::atomic<bool> stop = false;
 
-    std::thread read_worker;
+    std::vector<std::thread> read_workers;
     std::thread write_worker;
 
     mutable std::mutex read_ts_mutex;
