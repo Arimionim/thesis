@@ -47,7 +47,7 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
     std::vector<std::thread> ts;
     for (auto &c: clients) {
         c->addLoad(100, config::write_ratio);
-        ts.emplace_back(&Client::startLoad, c, 1000, 0);
+        ts.emplace_back(&Client::startLoad, c, 100, 0);
     }
 
     std::cout << "load completed\nwaiting for results.." << std::endl;
@@ -73,10 +73,16 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
 
 
 int main() {
-    for (double wr = 0; wr <= 10; wr += 0.05) {
-        for (int s = 1; s <= 10; s++) {
-            for (int c = 1; c <= 30; c++) {
-                test1(s, c, wr);
+   // test1(2, 10);
+    for (double wr = 0.1; wr <= 10; wr += 0.1) {
+        for (int s = 1; s <= 5; s++) {
+            for (int c = 1; c <= 20; c++) {
+                try {
+                    test1(s, c, wr);
+                } catch (const std::exception& e) {
+                    std::cout << e.what();
+                    c--;
+                }
             }
         }
     }

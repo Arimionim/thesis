@@ -82,7 +82,7 @@ private:
         Transaction res = std::move(ts.front());
         ts.pop();
 
-        if ((true || config::log) && ts.size() >= 15)
+        if ((true || config::log) && ts.size() >= 30)
             std::cout << "c queue " << ts.size() << ' ' << res.type << std::endl;
 
         lock.unlock();

@@ -12,7 +12,7 @@ namespace config {
     size_t server_worker_number = 1; // not used
     size_t server_read_worker_number = 1; // not used
     size_t clients_number = 20;
-    size_t coordinator_worker_number = std::max(1ull, clients_number / 4);
+    size_t coordinator_worker_number = std::max(1ull, (servers_number + clients_number) / 4);
     const bool log = false;
 
 
