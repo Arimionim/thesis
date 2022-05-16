@@ -126,7 +126,7 @@ private:
 
                 history.pieces--;
                 for (auto p: tx.data) {
-                    history.response.push_back(p);
+                    history.response.push_back(std::move(p));
                 }
 
 

@@ -18,6 +18,8 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
     config::write_ratio = write_ratio;
     config::update();
 
+    std::cout << config::server_read_worker_number << std::endl;
+
     Coordinator coordinator;
 
     std::vector<Server *> servers;
@@ -64,7 +66,10 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
     std::stringstream res_file;
     res_file << config::servers_number << '_' << config::clients_number << '_' << config::write_ratio;
     std::ofstream res(res_file.str());
-    res << logger::avg_r() << ' ' << logger::avg_w() << std::endl;
+
+    auto result = logger::read_res();
+
+    res << result.avg << ' ' << result.m50 << ' ' << result.m90 << ' ' << result.m95 << std::endl;
 
     for (auto s: servers) {
         delete s;
@@ -76,8 +81,8 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
 int main() {
    // test1(2, 10);
     for (double wr : {0.05, 0.1, 0.3}) {
-        for (int s = 1; s <= 1; s++) {
-            for (int cps = 10; cps <= 100; cps+=10) {
+        for (int s = 1; s <= 20; s++) {
+            for (int cps = 1; cps <= 1; cps+=10) {
                 try {
                     test1(s, cps * s, wr);
                 } catch (const std::exception& e) {

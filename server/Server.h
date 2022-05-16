@@ -19,7 +19,7 @@ public:
                                                                         version_processor(this) {
 
         read_workers.resize(config::server_read_worker_number);
-        for (size_t i = 0; i < config::coordinator_worker_number; i++) {
+        for (size_t i = 0; i < config::server_read_worker_number; i++) {
             read_workers[i] = std::thread(&Server::proceed_read, this);
         }
 

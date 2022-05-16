@@ -55,6 +55,7 @@ namespace logger {
     }
 
     void add_w(double s) {
+        return;
         std::lock_guard<std::mutex> lock(mutex);
         all_w.push_back(s);
     //    std::cout << s << std::endl;
@@ -88,13 +89,31 @@ namespace logger {
             return 0;
         }
 
+    }
+
+    struct res {
+        double avg;
+        double m50, m90, m95;
+    };
+
+    res read_res() {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (all_r.empty()) {
+            return {0, 0, 0};
+        }
+
         double avg = 0;
         for (auto v: all_r) {
             avg += v;
         }
 
-        return avg / all_r.size();
+         ;
+
+        std::sort(all_r.begin(), all_r.end());
+        return {avg / all_r.size(), all_r[all_r.size() * 0.5], all_r[all_r.size() * 0.90], all_r[all_r.size() * 0.95]};
     }
+
 
     std::vector<double> timing_c;
     std::vector<double> timing_s;
