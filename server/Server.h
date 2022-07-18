@@ -121,7 +121,7 @@ public:
 
             std::unique_lock<std::mutex> lock(draft_mutex);
             for (uint32_t &i: tx.data) {
-                draft[i] = random::xorshf96();
+                draft[i] = random_env::xorshf96();
             }
             lock.unlock();
 

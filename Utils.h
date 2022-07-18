@@ -5,12 +5,12 @@
 #include <functional>
 #include <atomic>
 
-namespace random {
+namespace random_env {
     static uint32_t x = 123456789, y = 362436069, z = 521288629;
 
     static uint32_t rand_max = UINT32_MAX;
 
-    uint32_t xorshf96() {          //period 2^96-1. Simple and fast random
+    uint32_t xorshf96() {          //period 2^96-1. Simple and fast random_env
         uint32_t t;
         x ^= x << 16;
         x ^= x >> 5;
@@ -25,7 +25,7 @@ namespace random {
     }
 }
 
-static void sleep(uint32_t ms) {
+static void my_sleep(uint32_t ms) {
     if (ms > 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
@@ -89,6 +89,7 @@ namespace logger {
             return 0;
         }
 
+        return 0;
     }
 
     struct res {

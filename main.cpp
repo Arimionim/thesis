@@ -80,9 +80,9 @@ void test1(size_t servers_number = config::servers_number, size_t clients_number
 
 int main() {
    // test1(2, 10);
-    for (double wr : {0.05, 0.1, 0.3}) {
-        for (int s = 1; s <= 20; s++) {
-            for (int cps = 1; cps <= 1; cps+=10) {
+    for (double wr : {0.1}) {
+        for (int s = 1; s <= 1; s++) {
+            for (int cps = 1; cps <= 100; cps+=1) {
                 try {
                     test1(s, cps * s, wr);
                 } catch (const std::exception& e) {

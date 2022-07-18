@@ -18,7 +18,7 @@ public:
     // wait *delay*, then sends all transactions from load to coordinator with interval *interval*
     void startLoad(size_t interval, size_t delay = 0) { // ms
         if (delay > 0) {
-            sleep(delay);
+            my_sleep(delay);
         }
 
         for (const auto &tr: load) {
@@ -29,7 +29,7 @@ public:
             lock.unlock();
             interactor.send(coordinator, tr);
             if (interval > 0)
-                sleep(interval);
+                my_sleep(interval);
         }
 
         wait_finish();

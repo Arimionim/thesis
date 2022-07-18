@@ -15,12 +15,12 @@ public:
         res.reserve(number);
 
         for (int i = 0; i < number; i++) {
-            bool is_write = random::xorshf96() <
-                            random::rand_max * write_fraction; // TODO: check if there is a but with range edges
+            bool is_write = random_env::xorshf96() <
+                            random_env::rand_max * write_fraction; // TODO: check if there is a but with range edges
             auto tr = Transaction(getUid(), is_write ? TransactionType::WRITE_ONLY : TransactionType::READ_ONLY);
             tr.data.resize(config::transaction_size);
             for (size_t j = 0; j < config::transaction_size; j++) {
-                tr.data[j] = random::xorshf96() % (config::data_size * config::servers_number);
+                tr.data[j] = random_env::xorshf96() % (config::data_size * config::servers_number);
             }
              res.push_back(tr);
         }
